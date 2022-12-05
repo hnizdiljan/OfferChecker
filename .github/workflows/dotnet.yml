@@ -14,7 +14,7 @@ jobs:
     - name: Static code analysis with Coverlet
       run: |
         dotnet tool install -g coverlet.console
-        coverlet ./Tests/bin/Debug/netcoreapp3.1/*.Tests.dll --target "dotnet" --targetargs "test ./Tests/Tests.csproj" --format opencover
+        coverlet ./Tests/bin/Debug/net6.0/*.Tests.dll --target "dotnet" --targetargs "test ./Tests/Tests.csproj" --format opencover
     - name: Create Release
       if: success()
       run: |
