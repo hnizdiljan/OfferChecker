@@ -33,6 +33,10 @@ jobs:
             COMMITS_SINCE_LAST_RELEASE=$(git log --oneline $LATEST_RELEASE_TAG..HEAD)
             # create release description
             RELEASE_DESCRIPTION="## Changes since last release:\n\n$COMMITS_SINCE_LAST_RELEASE"
+            
+            echo "Description: $RELEASE_DESCRIPTION"
+            echo "New version: $NEW_VERSION"
+            echo "Latest tag: $LATEST_RELEASE_TAG"
           fi
           
           if [ -z "$NEW_VERSION" ]
