@@ -1,0 +1,40 @@
+name: Build and Release ASP.NET Core App
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build and test ASP.NET Core app
+      run: |
+        dotnet build
+        dotnet test
+    - name: Static code analysis with Coverlet
+      run: |
+        dotnet tool install -g coverlet.console
+        coverlet ./Tests/bin/Debug/netcoreapp3.1/*.Tests.dll --target "dotnet" --targetargs "test ./Tests/Tests.csproj" --format opencover
+    - name: Create Release
+      if: success()
+      run: |
+        # get latest release tag
+        LATEST_RELEASE_TAG=$(git describe --tags --abbrev=0)
+        # increment version number
+        NEW_VERSION=$(awk -F. -v OFS=. 'NF==1{print ++$NF}; NF>1{if(length($NF+1)>length($NF))$(NF-1)++; $NF=sprintf("%0*d", length($NF), ($NF+1)%(10^length($NF))); print}' <<< $LATEST_RELEASE_TAG)
+
+        # create a new release
+        RELEASE_NAME="v$NEW_VERSION"
+        git tag $RELEASE_NAME
+        git push --tags
+
+        # get list of commits since last release
+        COMMITS_SINCE_LAST_RELEASE=$(git log $(git describe --tags --abbrev=0)..HEAD --oneline)
+
+        # create release description with list of commits
+        RELEASE_DESCRIPTION="$COMMITS_SINCE_LAST_RELEASE"
+
+        # upload build artifacts to release
+        UPLOAD_URL=$(curl -X POST -sH "Authorization: Bearer $GITHUB_TOKEN" -d '{"tag_name": "$RELEASE_NAME", "name": "$RELEASE_NAME", "body": "$RELEASE_DESCRIPTION", "draft": false, "prerelease": false}' "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" | jq -r '.upload_url')
+        UPLOAD_URL="${UPLOAD_URL%\{*}"
+        curl -X POST -sH "Authorization: Bearer $GITHUB_TOKEN" -H "Content-Type: application/zip" --data-binary @"$ARTIFACT_PATH" "$UPLOAD_URL?name=$(basename "$ARTIFACT_PATH")"
