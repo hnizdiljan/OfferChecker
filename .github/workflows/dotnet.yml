@@ -1,23 +1,53 @@
-name: Build and Release ASP.NET Core App
+name: Build and Release ASP.NET Core Application
 
 on: [push]
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - name: Build and test ASP.NET Core app
-      run: |
-        dotnet build
-        dotnet test
-    - name: Create Release
-      if: success()
-      run: |
-        # check if there are any tags
-        if $(git rev-parse --verify --quiet refs/tags); then
-          # get latest release tag
-          LATEST_RELEASE_TAG=$(git describe --tags --abbrev=0)
-          # increment version number
-          NEW_VERSION=$(awk -F. -v OFS=. '{ if (NF == 1) { $NF++; } else { if (length($NF+1) > length($NF)) $(NF-1)++; $NF=sprintf("%0*d", length($NF), ($NF+1)%(10^length($NF))); } print }' <<< "$LATEST_RELEASE_TAG")
-        fi
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: 3.1.x
+      - name: Install dependencies
+        run: dotnet restore
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+      - name: Test
+        run: dotnet test --no-build --configuration Release
+      - name: Create Release
+        if: success()
+        run: |
+          # check if there are any tags
+          if $(git rev-parse --verify --quiet refs/tags); then
+            # get latest release tag
+            LATEST_RELEASE_TAG=$(git describe --tags --abbrev=0)
+            # increment version number
+            NEW_VERSION=$(awk -F. -v OFS=. '{ if (NF == 1) { $NF++; } else { if (length($NF+1) > length($NF)) $(NF-1)++; $NF=sprintf("%0*d", length($NF), ($NF+1)%(10^length($NF))); } print }' <<< "$LATEST_RELEASE_TAG")
+            # get list of commits since last release
+            COMMITS_SINCE_LAST_RELEASE=$(git log --oneline $LATEST_RELEASE_TAG..HEAD)
+            # create release description
+            RELEASE_DESCRIPTION="## Changes since last release:\n\n$COMMITS_SINCE_LAST_RELEASE"
+          else
+            # set initial version number
+            NEW_VERSION="1.0.0"
+            # set default release description
+            RELEASE_DESCRIPTION="This is the first release of our application"
+          fi
+          # create new release with the updated version number and release description
+          echo "Creating release v$NEW_VERSION"
+          git tag -a v$NEW_VERSION -m "v$NEW_VERSION"
+          git push origin v$NEW_VERSION
+          hub release create -m "v$NEW_VERSION" -m "$RELEASE_DESCRIPTION" v$NEW_VERSION
+      - name: Build and pack
+        if: success()
+        run: |
+          # build application
+          dotnet build --configuration Release
+          # create zip archive with the built application
+          zip -r app.zip ./bin/Release/net6.0/
+          # attach the zip archive to the release
+          hub release upload -a app.zip v$NEW_VERSION
