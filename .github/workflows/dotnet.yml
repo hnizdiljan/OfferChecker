@@ -29,14 +29,3 @@ jobs:
         RELEASE_NAME="v$NEW_VERSION"
         git tag $RELEASE_NAME
         git push --tags
-
-        # get list of commits since last release
-        COMMITS_SINCE_LAST_RELEASE=$(git log $(git describe --tags --abbrev=0)..HEAD --oneline)
-
-        # create release description with list of commits
-        RELEASE_DESCRIPTION="$COMMITS_SINCE_LAST_RELEASE"
-
-        # upload build artifacts to release
-        UPLOAD_URL=$(curl -X POST -sH "Authorization: Bearer $GITHUB_TOKEN" -d '{"tag_name": "$RELEASE_NAME", "name": "$RELEASE_NAME", "body": "$RELEASE_DESCRIPTION", "draft": false, "prerelease": false}' "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" | jq -r '.upload_url')
-        UPLOAD_URL="${UPLOAD_URL%\{*}"
-        curl -X POST -sH "Authorization: Bearer $GITHUB_TOKEN" -H "Content-Type: application/zip" --data-binary @"$ARTIFACT_PATH" "$UPLOAD_URL?name=$(basename "$ARTIFACT_PATH")"
