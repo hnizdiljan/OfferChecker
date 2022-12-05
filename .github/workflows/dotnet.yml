@@ -65,7 +65,7 @@ jobs:
           # build application
           dotnet build --configuration Release
           # create zip archive with the built application
-          zip -r app.zip ./bin/Release/net6.0/
+          zip -r app.zip /home/runner/work/OfferChecker/OfferChecker/OfferCheckerAPI/bin/Release/net6.0/
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
