@@ -24,7 +24,7 @@ jobs:
         if: success()
         run: |
           # init variables
-          NEW_VERSION=""
+          NEW_VERSION="XXX"
           
           # check if there are any tags
           if $(git rev-parse --verify --quiet refs/tags); then
@@ -52,8 +52,8 @@ jobs:
           fi
           
         env:
-          NEW_VERSION: $NEW_VERSION
-          RELEASE_DESCRIPTION: $RELEASE_DESCRIPTION
+          NEW_VERSION: ${NEW_VERSION}
+          RELEASE_DESCRIPTION: ${RELEASE_DESCRIPTION}
       - name: Create Release
         if: success()
         uses: actions/create-release@v1
