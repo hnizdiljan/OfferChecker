@@ -24,8 +24,3 @@ jobs:
           # increment version number
           NEW_VERSION=$(awk -F. -v OFS=. '{ if (NF == 1) { $NF++; } else { if (length($NF+1) > length($NF)) $(NF-1)++; $NF=sprintf("%0*d", length($NF), ($NF+1)%(10^length($NF))); } print }' <<< "$LATEST_RELEASE_TAG")
         fi
-
-        # create a new release
-        RELEASE_NAME="v$NEW_VERSION"
-        git tag $RELEASE_NAME
-        git push --tags
