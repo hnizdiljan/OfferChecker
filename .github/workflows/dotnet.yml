@@ -37,6 +37,10 @@ jobs:
             # set default release description
             RELEASE_DESCRIPTION="This is the first release of our application"
           fi
+          
+          git config --global user.name "Github Action"
+          git config --global user.email "github@softim.cz"
+          
           # create new release with the updated version number and release description
           echo "Creating release v$NEW_VERSION"
           git tag -a v$NEW_VERSION -m "v$NEW_VERSION"
