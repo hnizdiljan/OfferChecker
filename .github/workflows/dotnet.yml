@@ -46,9 +46,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: $NEW_VERSION
-          release_name: "v$NEW_VERSION"
-          body: "$RELEASE_DESCRIPTION"
+          tag_name: "v${{ env.NEW_VERSION }}"
+          release_name: "v${{ env.NEW_VERSION }}"
+          body: "${{ env.RELEASE_DESCRIPTION }}"
       - name: Build and pack
         if: success()
         run: |
