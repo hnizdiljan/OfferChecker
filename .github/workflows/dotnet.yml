@@ -4,6 +4,9 @@ on: [push]
 
 jobs:
   build-and-test:
+    if: |
+      # check the commit message for the string "create release"
+      cat $GITHUB_EVENT_PATH | grep "create release"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
