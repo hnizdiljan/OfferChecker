@@ -18,7 +18,7 @@ jobs:
         run: dotnet build --no-restore --configuration Release
       - name: Test
         run: dotnet test --no-build --configuration Release
-      - name: Create Release
+      - name: Set variables
         if: success()
         run: |
           # check if there are any tags
@@ -37,15 +37,13 @@ jobs:
             # set default release description
             RELEASE_DESCRIPTION="This is the first release of our application"
           fi
-          
-          git config --global user.name "Github Action"
-          git config --global user.email "github@softim.cz"
-          
-          # create new release with the updated version number and release description
-          echo "Creating release v$NEW_VERSION"
-          git tag -a v$NEW_VERSION -m "v$NEW_VERSION"
-          git push origin v$NEW_VERSION
-          hub release create -m "v$NEW_VERSION" -m "$RELEASE_DESCRIPTION" v$NEW_VERSION
+      - name: Create Release
+        if: success()
+        uses: actions/create-release@v1
+        with:
+          tag_name: v$NEW_VERSION
+          release_name: "v$NEW_VERSION"
+          body: "$RELEASE_DESCRIPTION"
       - name: Build and pack
         if: success()
         run: |
@@ -53,5 +51,10 @@ jobs:
           dotnet build --configuration Release
           # create zip archive with the built application
           zip -r app.zip ./bin/Release/net6.0/
-          # attach the zip archive to the release
-          hub release upload -a app.zip v$NEW_VERSION
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: app.zip
+          asset_name: app.zip
+          asset_content_type: application/zip
