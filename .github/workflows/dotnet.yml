@@ -5,6 +5,9 @@ on: [push]
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    env:
+      NEW_VERSION: 1.0.0
+      RELEASE_DESCRIPTION: This is the first release of our application
     # only run the job if the `contains` condition is met
     if: contains(github.event.head_commit.message, 'create release')
     steps:
@@ -22,10 +25,7 @@ jobs:
         run: dotnet test --no-build --configuration Release
       - name: Set variables
         if: success()
-        run: |
-          # init variables
-          NEW_VERSION="XXX"
-          
+        run: |          
           # check if there are any tags
           if $(git rev-parse --verify --quiet refs/tags); then
             # get latest release tag
@@ -43,24 +43,20 @@ jobs:
           echo "New version: ${NEW_VERSION}"
           echo "Latest tag: ${LATEST_RELEASE_TAG}"
           
-          if [ -z "${NEW_VERSION}" ]
+          if [ -z "${{ env.NEW_VERSION }}" ]
           then
             # set initial version number
             NEW_VERSION="1.0.0"
             # set default release description
             RELEASE_DESCRIPTION="This is the first release of our application"
           fi
-          
-        env:
-          NEW_VERSION: ${NEW_VERSION}
-          RELEASE_DESCRIPTION: ${RELEASE_DESCRIPTION}
       - name: Create Release
         if: success()
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: "${NEW_VERSION}"
+          tag_name: "${{ env.NEW_VERSION }}"
           release_name: "v${{ env.NEW_VERSION }}"
           body: "${{ env.RELEASE_DESCRIPTION }}"
       - name: Build and pack
