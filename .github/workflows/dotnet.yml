@@ -27,6 +27,15 @@ jobs:
         if: success()
         run: |          
           # check if there are any tags
+          echo "NEW_VERSION: ${NEW_VERSION}"
+          echo "NEW_VERSION env: ${{ env.NEW_VERSION }}"
+          NEW_VERSION="1.0.1"
+          echo "updated NEW_VERSION: ${NEW_VERSION}"
+          echo "updated NEW_VERSION env: ${{ env.NEW_VERSION }}"
+          NEW_VERSION=1.0.2
+          echo "updated NEW_VERSION: ${NEW_VERSION}"
+          echo "updated NEW_VERSION env: ${{ env.NEW_VERSION }}"
+          
           if $(git rev-parse --verify --quiet refs/tags); then
             # get latest release tag
             LATEST_RELEASE_TAG=$(git describe --tags --abbrev=0)
