@@ -25,42 +25,33 @@ jobs:
         run: dotnet test --no-build --configuration Release
       - name: Set variables
         if: success()
-        run: |          
-          # check if there are any tags
-          echo "NEW_VERSION: ${NEW_VERSION}"
-          echo "NEW_VERSION env: ${{ env.NEW_VERSION }}"
-          NEW_VERSION="1.0.1"
-          echo "NEW_VERSION=${NEW_VERSION}" >> $GITHUB_ENV
-          echo "updated NEW_VERSION: ${NEW_VERSION}"
-          echo "updated NEW_VERSION env: ${{ env.NEW_VERSION }}"
-          NEW_VERSION=1.0.2
-          echo "NEW_VERSION=${NEW_VERSION}" >> $GITHUB_ENV
-          echo "updated NEW_VERSION: ${NEW_VERSION}"
-          echo "updated NEW_VERSION env: ${{ env.NEW_VERSION }}"
+        run: |                    
+          git tag -l
           
-          if $(git rev-parse --verify --quiet refs/tags); then
+          # Check the return code of the git tag -l command
+          if [ $? -ne 1 ]; then
             # get latest release tag
             LATEST_RELEASE_TAG=$(git describe --tags --abbrev=0)
-            echo "LATEST_RELEASE_TAG ${LATEST_RELEASE_TAG}"
             # increment version number
             NEW_VERSION=$(awk -F. -v OFS=. '{ if (NF == 1) { $NF++; } else { if (length($NF+1) > length($NF)) $(NF-1)++; $NF=sprintf("%0*d", length($NF), ($NF+1)%(10^length($NF))); } print }' <<< "$LATEST_RELEASE_TAG")
+            echo "NEW_VERSION=${NEW_VERSION}" >> $GITHUB_ENV
             # get list of commits since last release
             COMMITS_SINCE_LAST_RELEASE=$(git log --oneline $LATEST_RELEASE_TAG..HEAD)
             # create release description
             RELEASE_DESCRIPTION="## Changes since last release:\n\n$COMMITS_SINCE_LAST_RELEASE"
+            echo "RELEASE_DESCRIPTION=${RELEASE_DESCRIPTION}" >> $GITHUB_ENV
             
           fi
           
-          echo "Description: ${RELEASE_DESCRIPTION}"
-          echo "New version: ${NEW_VERSION}"
-          echo "Latest tag: ${LATEST_RELEASE_TAG}"
           
           if [ -z "${{ env.NEW_VERSION }}" ]
           then
             # set initial version number
             NEW_VERSION="1.0.0"
+            echo "NEW_VERSION=${NEW_VERSION}" >> $GITHUB_ENV
             # set default release description
             RELEASE_DESCRIPTION="This is the first release of our application"
+            echo "RELEASE_DESCRIPTION=${RELEASE_DESCRIPTION}" >> $GITHUB_ENV
           fi
       - name: Create Release
         id: create_release
