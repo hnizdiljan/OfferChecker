@@ -27,8 +27,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.release-version.outputs.next-version }}
-          release_name: ${{ steps.release-version.outputs.next-version }}
+          tag_name: v${{ steps.release-version.outputs.next-version }}
+          release_name: v${{ steps.release-version.outputs.next-version }}
           body: ${{steps.build_changelog.outputs.changelog}}
       - name: Build and pack
         if: success()
