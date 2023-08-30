@@ -18,58 +18,74 @@ public class PriceComparisonService : IPriceComparisonService
     public async Task CompareAndNotifyAsync(List<ProductConfig> products)
     {
         List<Product> previousLowestPrices = LoadMemory();
-
         foreach (var productConfig in products)
         {
-            var product = await _crawler.CrawlAsync(productConfig.URL, productConfig.Name);
+            var currentProduct = await _crawler.CrawlAsync(productConfig.URL, productConfig.Name);
             var previousProduct = previousLowestPrices.FirstOrDefault(p => p.Name == productConfig.Name);
-            var isModified = false;
 
-            // Pro nejnižší cenu
-            if (previousProduct != null)
-            {
-                if (product.LowestPrice.Price < previousProduct.LowestPrice.Price)
-                {
-                    _notifier.Notify($"*Price Dropped!* 📉\n\n*Product:* `{productConfig.Name}`\n*New Price:* `{product.LowestPrice.Price}`\n*Shop:* [Link]({product.LowestPrice.Url})");
-                    isModified = true;
-                }
-                else if (product.LowestPrice.Price > previousProduct.LowestPrice.Price)
-                {
-                    _notifier.Notify($"*Price Increased!* 📈\n\n*Product:* `{productConfig.Name}`\n*New Price:* `{product.LowestPrice.Price}`\n*Shop:* [Link]({product.LowestPrice.Url})");
-                    isModified = true;
-                }
-            }
-            else
-            {
-                _notifier.Notify($"*New Lowest Price!* 🌟\n\n*Product:* `{productConfig.Name}`\n*Price:* `{product.LowestPrice.Price}`\n*Shop:* [Link]({product.LowestPrice.Url})");
-                isModified = true;
-            }
-
-            // Pro nejnižší certifikovanou cenu
-            if (previousProduct != null)
-            {
-                if (product.LowestCertifiedPrice.Price < previousProduct.LowestCertifiedPrice.Price)
-                {
-                    _notifier.Notify($"*Certified Price Dropped!* 📉\n\n*Product:* `{productConfig.Name}`\n*New Certified Price:* `{product.LowestCertifiedPrice.Price}`\n*Shop:* [Link]({product.LowestCertifiedPrice.Url})");
-                    isModified = true;
-                }
-                else if (product.LowestCertifiedPrice.Price > previousProduct.LowestCertifiedPrice.Price)
-                {
-                    _notifier.Notify($"*Certified Price Increased!* 📈\n\n*Product:* `{productConfig.Name}`\n*New Certified Price:* `{product.LowestCertifiedPrice.Price}`\n*Shop:* [Link]({product.LowestCertifiedPrice.Url})");
-                    isModified = true;
-                }
-            }
-            else
-            {
-                _notifier.Notify($"*New Lowest Certified Price!* 🌟\n\n*Product:* `{productConfig.Name}`\n*Certified Price:* `{product.LowestCertifiedPrice.Price}`\n*Shop:* [Link]({product.LowestCertifiedPrice.Url})");
-                isModified = true;
-            }
-
-            if (isModified)
-            {
-                UpdateMemory(product, previousLowestPrices);
-            }
+            NotifyIfPriceChanged(previousProduct, currentProduct, productConfig);
         }
+    }
+
+    private void NotifyIfPriceChanged(Product previousProduct, Product currentProduct, ProductConfig productConfig)
+    {
+        bool isModified = false;
+
+        isModified |= CheckAndNotifyPriceChange(previousProduct?.LowestPrice, currentProduct.LowestPrice, productConfig, "Price", "📉", "📈");
+        isModified |= CheckAndNotifyPriceChange(previousProduct?.LowestCertifiedPrice, currentProduct.LowestCertifiedPrice, productConfig, "Certified Price", "📉", "📈");
+
+        if (isModified)
+        {
+            UpdateMemory(currentProduct);
+        }
+    }
+
+    private bool CheckAndNotifyPriceChange(LowestPriceInfo previousPriceInfo, LowestPriceInfo currentPriceInfo, ProductConfig productConfig, string priceLabel, string dropEmoji, string riseEmoji)
+    {
+        if (previousPriceInfo == null)
+        {
+            NotifyNewPrice(currentPriceInfo, productConfig, priceLabel, "🌟");
+            return true;
+        }
+
+        decimal percentageChange = CalculatePercentageChange(previousPriceInfo.Price, currentPriceInfo.Price);
+
+        if (currentPriceInfo.Price < previousPriceInfo.Price)
+        {
+            NotifyPriceChange(currentPriceInfo, previousPriceInfo, productConfig, priceLabel, percentageChange, dropEmoji);
+            return true;
+        }
+        else if (currentPriceInfo.Price > previousPriceInfo.Price)
+        {
+            NotifyPriceChange(currentPriceInfo, previousPriceInfo, productConfig, priceLabel, percentageChange, riseEmoji);
+            return true;
+        }
+
+        return false;
+    }
+
+    private decimal CalculatePercentageChange(decimal oldPrice, decimal newPrice)
+    {
+        return Math.Round((newPrice - oldPrice) / oldPrice * 100, 1);
+    }
+
+    private void NotifyPriceChange(LowestPriceInfo newPriceInfo, LowestPriceInfo oldPriceInfo, ProductConfig productConfig, string priceLabel, decimal percentageChange, string emoji)
+    {
+        string priceUnit = "CZK";
+        string direction = percentageChange > 0 ? "+" : "-";
+
+        string message = $"*{priceLabel} Changed!* {emoji}\n\n*Product:* `{productConfig.Name}`\n*Old {priceLabel}:* `{oldPriceInfo.Price} {priceUnit}`\n*New {priceLabel}:* `{newPriceInfo.Price} {priceUnit}`\n*Change:* `{direction}{Math.Abs(percentageChange)}%`\n*Shop:* [Link]({newPriceInfo.Url})";
+
+        _notifier.Notify(message);
+    }
+
+    private void NotifyNewPrice(LowestPriceInfo priceInfo, ProductConfig productConfig, string priceLabel, string emoji)
+    {
+        string priceUnit = "CZK";
+
+        string message = $"*New Lowest {priceLabel}!* {emoji}\n\n*Product:* `{productConfig.Name}`\n*{priceLabel}:* `{priceInfo.Price} {priceUnit}`\n*Shop:* [Link]({priceInfo.Url})";
+
+        _notifier.Notify(message);
     }
 
     private List<Product> LoadMemory()
@@ -80,16 +96,19 @@ public class PriceComparisonService : IPriceComparisonService
         }
 
         string json = File.ReadAllText(MemoryFilePath);
-        return JsonSerializer.Deserialize<List<Product>>(json);
+        return JsonSerializer.Deserialize<List<Product>>(json) ?? new List<Product>();
     }
 
-    private void UpdateMemory(Product updatedProduct, List<Product> currentMemory)
+    private void UpdateMemory(Product updatedProduct)
     {
-        var existingProduct = currentMemory.FirstOrDefault(p => p.Name == updatedProduct.Name);
+
+        var memory = LoadMemory();
+
+        var existingProduct = memory.FirstOrDefault(p => p.Name == updatedProduct.Name);
 
         if (existingProduct == null)
         {
-            currentMemory.Add(updatedProduct);
+            memory.Add(updatedProduct);
         }
         else
         {
@@ -97,7 +116,7 @@ public class PriceComparisonService : IPriceComparisonService
             existingProduct.LowestCertifiedPrice = updatedProduct.LowestCertifiedPrice;
         }
 
-        string json = JsonSerializer.Serialize(currentMemory);
+        string json = JsonSerializer.Serialize(memory);
         File.WriteAllText(MemoryFilePath, json);
     }
 }
