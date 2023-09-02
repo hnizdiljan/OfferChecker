@@ -1,4 +1,4 @@
 ﻿public interface ICrawler
 {
-    Task<Product> CrawlAsync(string url, string name);
+    Task<Product> CrawlAsync(ProductConfig config);
 }

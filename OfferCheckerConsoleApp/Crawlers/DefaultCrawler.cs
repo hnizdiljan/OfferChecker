@@ -11,50 +11,85 @@ public class DefaultCrawler : ICrawler
         _httpClient = httpClient;
     }
 
-    public async Task<Product> CrawlAsync(string url, string name)
+    public string ConvertToApiUrl(string originalUrl)
     {
-        HttpResponseMessage response = default;
-        try
+        // Parsujeme vstupní URL
+        Uri uri = new Uri(originalUrl);
+
+        // Získáme části URL
+        string path = uri.AbsolutePath;
+        string query = uri.Query;
+
+        // Získáme produkt a variantu z původního URL
+        string product = path.Split("/")[2];
+        string variant = query.Split("=")[1];
+
+        // Vytvoříme nový URL
+        UriBuilder apiUriBuilder = new UriBuilder
         {
-            response = await _httpClient.GetAsync(url);
-        }catch(Exception e)
-        {
-            Console.WriteLine(e.Message);
-        }
-
-
-        if (!response.IsSuccessStatusCode)
-        {
-            // Zde můžete logovat nebo zpracovat chybový stav
-            return null;
-        }
-
-        var content = await response.Content.ReadAsStringAsync();
-        var apiResponse = JsonSerializer.Deserialize<APIResponse>(content);
-
-        var cheapestOffers = apiResponse.product.cheapestOffers.offers.First();
-        var cheapestCertifiedOffers = apiResponse.product.cheapestOffers.offers.First(x => x.isAuthorizedDealer == true);
-
-        var product = new Product
-        {
-            Name = name,
-            LowestPrice = new LowestPriceInfo
-            {
-                Price = cheapestOffers.price / 100,
-                Url = $"https://www.zbozi.cz{cheapestOffers.click}",
-                ShopName = cheapestOffers.shop.displayName,
-                OfferName = cheapestOffers.displayName
-            },
-            LowestCertifiedPrice = new LowestPriceInfo
-            {
-                Price = cheapestCertifiedOffers.price / 100,
-                Url = $"https://www.zbozi.cz{cheapestCertifiedOffers.click}",
-                ShopName = cheapestCertifiedOffers.shop.displayName,
-                OfferName = cheapestCertifiedOffers.displayName
-            }
+            Scheme = "https",
+            Host = "www.zbozi.cz",
+            Path = $"api/v3/product/{product}/",
+            Query = $"productVariant={variant}&limitTopOffers=3&limitCheapOffers=20&filterFields=offersData"
         };
 
-        return product;
+        return apiUriBuilder.ToString();
+    }
+
+    // Fetches response data and handles exceptions
+    private async Task<HttpResponseMessage> GetHttpResponseAsync(string url)
+    {
+        try
+        {
+            return await _httpClient.GetAsync(ConvertToApiUrl(url));
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.Message);
+            return default;
+        }
+    }
+
+    // Parses response content to a model
+    private async Task<APIResponse> ParseApiResponseAsync(HttpResponseMessage response)
+    {
+        var content = await response.Content.ReadAsStringAsync();
+        return JsonSerializer.Deserialize<APIResponse>(content);
+    }
+
+    // Finds the cheapest offer based on the configuration
+    private Offer FindCheapestOffer(APIResponse apiResponse, ProductConfig config)
+    {
+
+        var products = apiResponse.product.cheapestOffers.offers.Where(x => x.shop.recensionCount >= config.RecensionCountLimit && 
+                                                                            x.shop.rating >= config.RatingLimit);
+
+        return (config.OnlyCertified)
+            ? products.OrderBy(x => x.price).FirstOrDefault(x => x.isAuthorizedDealer == true)
+            : products.OrderBy(x => x.price).FirstOrDefault();
+    }
+
+    // Main method for crawling product information
+    public async Task<Product> CrawlAsync(ProductConfig config)
+    {
+        var response = await GetHttpResponseAsync(config.URL);
+
+        if (!response?.IsSuccessStatusCode ?? true) return null; // Handle null or unsuccessful responses
+
+        var apiResponse = await ParseApiResponseAsync(response);
+
+        var cheapestOffers = FindCheapestOffer(apiResponse, config);
+
+        if (cheapestOffers == null) return null; // Handle null offers
+
+        return new Product
+        {
+            ProductName = config.Name,
+            Price = cheapestOffers.price / 100,
+            Url = $"https://www.zbozi.cz{cheapestOffers.click}",
+            ShopName = cheapestOffers.shop.displayName,
+            OfferName = cheapestOffers.displayName
+        };
     }
 
     // Třída pro deserializaci API odpovědi
@@ -94,5 +129,7 @@ public class DefaultCrawler : ICrawler
     public class Shop
     {
         public string displayName { get; set; }
+        public int rating { get; set; }
+        public int recensionCount { get; set; }
     }
 }

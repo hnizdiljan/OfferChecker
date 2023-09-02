@@ -1,6 +1,16 @@
 [
   {
     "Name": "Samsung Galaxy S23 Ultra",
-    "URL": "https://www.zbozi.cz/api/v3/product/samsung-galaxy-s23-ultra/?limitTopOffers=1&limitCheapOffers=10&filterFields=offersData"
+    "OnlyCertified": false,
+    "RecensionCountLimit": 1000,
+    "RatingLimit": 92,
+    "URL": "https://www.zbozi.cz/vyrobek/samsung-galaxy-s23-ultra/?varianta=8-256-gb-phantom-black"
+  },
+  {
+    "Name": "Plenky DADA 5 Pants",
+    "OnlyCertified": false,
+    "URL": "https://www.zbozi.cz/vyrobek/dada-pants-extra-care-5-junior-12-18-kg/?varianta=35-ks"
   }
 ]
+
+

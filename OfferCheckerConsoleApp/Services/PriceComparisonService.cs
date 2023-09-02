@@ -20,8 +20,8 @@ public class PriceComparisonService : IPriceComparisonService
         List<Product> previousLowestPrices = LoadMemory();
         foreach (var productConfig in products)
         {
-            var currentProduct = await _crawler.CrawlAsync(productConfig.URL, productConfig.Name);
-            var previousProduct = previousLowestPrices.FirstOrDefault(p => p.Name == productConfig.Name);
+            var currentProduct = await _crawler.CrawlAsync(productConfig);
+            var previousProduct = previousLowestPrices.FirstOrDefault(p => p.ProductName == productConfig.Name);
 
             NotifyIfPriceChanged(previousProduct, currentProduct, productConfig);
         }
@@ -31,8 +31,8 @@ public class PriceComparisonService : IPriceComparisonService
     {
         bool isModified = false;
 
-        isModified |= CheckAndNotifyPriceChange(previousProduct?.LowestPrice, currentProduct.LowestPrice, productConfig, "Price", "📉", "📈");
-        isModified |= CheckAndNotifyPriceChange(previousProduct?.LowestCertifiedPrice, currentProduct.LowestCertifiedPrice, productConfig, "Certified Price", "📉", "📈");
+        isModified |= CheckAndNotifyPriceChange(previousProduct, currentProduct, productConfig, (productConfig.OnlyCertified ? "Certified " : "") + "Price", "📉", "📈");
+
 
         if (isModified)
         {
@@ -40,7 +40,7 @@ public class PriceComparisonService : IPriceComparisonService
         }
     }
 
-    private bool CheckAndNotifyPriceChange(LowestPriceInfo previousPriceInfo, LowestPriceInfo currentPriceInfo, ProductConfig productConfig, string priceLabel, string dropEmoji, string riseEmoji)
+    private bool CheckAndNotifyPriceChange(Product previousPriceInfo, Product currentPriceInfo, ProductConfig productConfig, string priceLabel, string dropEmoji, string riseEmoji)
     {
         if (previousPriceInfo == null)
         {
@@ -69,7 +69,7 @@ public class PriceComparisonService : IPriceComparisonService
         return Math.Round((newPrice - oldPrice) / oldPrice * 100, 1);
     }
 
-    private void NotifyPriceChange(LowestPriceInfo newPriceInfo, LowestPriceInfo oldPriceInfo, ProductConfig productConfig, string priceLabel, decimal percentageChange, string emoji)
+    private void NotifyPriceChange(Product newPriceInfo, Product oldPriceInfo, ProductConfig productConfig, string priceLabel, decimal percentageChange, string emoji)
     {
         string priceUnit = "CZK";
         string direction = percentageChange > 0 ? "+" : "-";
@@ -79,7 +79,7 @@ public class PriceComparisonService : IPriceComparisonService
         _notifier.Notify(message);
     }
 
-    private void NotifyNewPrice(LowestPriceInfo priceInfo, ProductConfig productConfig, string priceLabel, string emoji)
+    private void NotifyNewPrice(Product priceInfo, ProductConfig productConfig, string priceLabel, string emoji)
     {
         string priceUnit = "CZK";
 
@@ -104,7 +104,7 @@ public class PriceComparisonService : IPriceComparisonService
 
         var memory = LoadMemory();
 
-        var existingProduct = memory.FirstOrDefault(p => p.Name == updatedProduct.Name);
+        var existingProduct = memory.FirstOrDefault(p => p.ProductName == updatedProduct.ProductName);
 
         if (existingProduct == null)
         {
@@ -112,8 +112,10 @@ public class PriceComparisonService : IPriceComparisonService
         }
         else
         {
-            existingProduct.LowestPrice = updatedProduct.LowestPrice;
-            existingProduct.LowestCertifiedPrice = updatedProduct.LowestCertifiedPrice;
+            existingProduct.Price = updatedProduct.Price;
+            existingProduct.Url = updatedProduct.Url;
+            existingProduct.ShopName = updatedProduct.ShopName;
+            existingProduct.OfferName = updatedProduct.OfferName;
         }
 
         string json = JsonSerializer.Serialize(memory);

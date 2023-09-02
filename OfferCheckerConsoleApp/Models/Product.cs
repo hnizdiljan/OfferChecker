@@ -1,6 +1,10 @@
 ﻿public class Product
 {
-    public string Name { get; set; }
-    public LowestPriceInfo LowestPrice { get; set; }
-    public LowestPriceInfo LowestCertifiedPrice { get; set; }
+    public string ProductName { get; set; }
+    public decimal Price { get; set; }
+    public string Url { get; set; }
+
+    public string ShopName { get; set; }
+
+    public string OfferName { get; set; }
 }
